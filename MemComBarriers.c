@@ -32,18 +32,23 @@ void * cBarrier(void * p) { // code for Centralized Barrier
     return NULL;
 }
 
+void * dBarrier(void * p) { // code for Dissemination Barrier
+    bool flags[P][2][rounds]; // allocated in local storage per thread
+    bool local_sense = false;
+    int parity = 0;
 
-// void dBarrier(int * P) { // code for Dissemination Barrier
-//     for (round = 0 to rounds - 1) {
-//         partner = (tid + 2^round) mod P;
-//         flags[partner][parity][round] = !sense;
-//         while (flags[tid][parity][round] == sense) { /* spin */ }
-//         }
-//     if (parity == 1) {
-//         sense = !sense;
-//     }
-//     parity = 1 - parity;
-// }
+    for (int i = 0; i<round, i++) {
+        partner = (tid + 2**round) % P;
+        flags[partner][parity][round] = !local_sense;
+        while (flags[tid][parity][round] == local_sense) { /* spin */ 
+        usleep(1000);
+        }
+    }
+    if (parity == 1) {
+        local_sense = !local_sense;
+    }
+    parity = 1 - parity;
+}
 
 // for simplicity, assume P power of 2
 // void mcsBarrier(int tid) { // code for MCS Barrier (actually Tournament Barrier - needs to be edited)
@@ -62,9 +67,6 @@ void * cBarrier(void * p) { // code for Centralized Barrier
 //     }
 //     sense = !sense;
 // }
-
-
-// void * thread
 
 
 int main() {
@@ -95,31 +97,35 @@ int main() {
         for (int i=0; i<P; i++) {
             usleep(100);
             pthread_create(&thr[i], NULL, cBarrier, (void *)&thr[i]);
+            printf("thread = %d\n", thr[i]);
             d[2*i] = (unsigned long) i+1;
             d[2*i+1] = (unsigned long) &thr[i];;
-            usleep(1000); // this is the lowest order of magnitude that doesn't cut off thread spinning
-            // pthread_join(thr[i], NULL);
+            usleep(1000); // this is the lowest order of magnitude that doesn't seems to cut off threads' spinning
         }
 
     } else if (barrier == 2) { // Dissemination Barrier
-        // const int rounds = log(P);
-        // bool flags[P][2][rounds]; // allocated in local storage per thread
-        // local bool sense = false;
-        // local int parity = 0;
+        const int rounds = log(P);
+        printf("rounds = %i\n", rounds);
 
-    } else { // MCS Barrier
-
-
+        for (int i=0; i<P; i++) {
+            usleep(100);
+            pthread_create(&thr[i], NULL, dBarrier, (void *)&thr[i]);
+            d[2*i] = (unsigned long) i+1;
+            d[2*i+1] = (unsigned long) &thr[i];;
+            usleep(1000);
+        }
+    } else if (barrier == 3) { // MCS Barrier
+        // for (int i=0; i<P; i++) {
+        //         usleep(100);
+        //         pthread_create(&thr[i], NULL, mcsBarrier, (void *)&thr[i]);
+        //         d[2*i] = (unsigned long) i+1;
+        //         d[2*i+1] = (unsigned long) &thr[i];;
+        //         usleep(1000);
     }
 
-    // printf("\nI didn't make time for this assingnment as early as I should have. Travel and other obligations got in the way of getting it done.\nI hope there'll be a chance to make it up or something at some point. It's frustrating. Still, have a great break!\n\n");
-
-    // pthread_t thread; // this declares the thread
-    // pthread_create(&thread, NULL, func, NULL);
-    // printf("From this function, the thread id is %d\n", thread);
-    // pthread_join(thread, NULL); // join with the main thread
-
+    /*printf("\nI didn't make time for this assingnment as early as I should have. Travel and other obligations got in the way of getting it done.\n")
+    printf("I hope there'll be a chance to make it up or something at some point. It's frustrating. Still, I'm happy to have explored it. Have a great break!\n\n");*/
+    
     free(d);
     return 0;
-
 }
