@@ -1,45 +1,34 @@
 #include "MemComBarriers.h"
 
-// void * func(void * p) {
-//     printf("Thread id = %d\n", pthread_self()); // get current thread id
-//         pthread_exit(NULL);
-//     return NULL;
-// }
-
-// void * barrier(int type, int Nthreads) {
-//     pthread_t threads[Nthreads];
-//     int arrived;
-//     int left;
-//     bool sense;
-// }
-
 bool sense = false;
 int counter = 0;
 int P = 0;
+unsigned long * d = 0; // pointer to the dictionary of actual thread ids and user-friendly ids
 
-int fetch_and_increment(int * p) {
-    printf("&n = %d\n", *p);
-
-    return *p;
-}
 
 void * cBarrier(void * p) { // code for Centralized Barrier
-    printf("something\n");
-    int * id = (int *) &p;
-    int ID = counter+1;
+    unsigned long * id = (long unsigned *) &p;
+    int ID = 0;
+    
+    for (int i = 0; i<P; i++) {
+        if (d[2*i+1] == (unsigned long) *id) {
+            ID = (int) d[2*i];
+            break;
+        }
+    }
     bool local_sense = ! sense;
-    printf("Thread ID: %lu, counter: %d\n",(long)*id,++counter);
-
-    if (fetch_and_increment(&counter) == P) {
+    printf("Thread %i arrived\n", ID);
+    if (++counter == P) {
         counter = 0;
         sense = local_sense;
+        printf("Sense switched by thread %i\n", ID);
     } else {
         while (sense != local_sense) { /* spin */
-        usleep(100); // interesting behavior if this value is large (>1000)
+        usleep(100);
         }
-        
     }
     printf("Thread %i passed\n", ID);
+    
     return NULL;
 }
 
@@ -101,16 +90,15 @@ int main() {
     printf(" Number of Threads = %d\n\n", P);
 
     pthread_t thr[P];
-    
+    d = (unsigned long *) calloc(P, sizeof(unsigned long));
     if (barrier == 1) { // Centralized Barrier
         for (int i=0; i<P; i++) {
-            usleep(10000);
-            printf("start\n");
+            usleep(100);
             pthread_create(&thr[i], NULL, cBarrier, (void *)&thr[i]);
-            printf("middle: %lu\n", (long)&thr[i]);
-            usleep(10000); // if I don't include this, then the thread doesn't actually go until after "end"
+            d[2*i] = (unsigned long) i+1;
+            d[2*i+1] = (unsigned long) &thr[i];;
+            usleep(1000); // this is the lowest order of magnitude that doesn't cut off thread spinning
             // pthread_join(thr[i], NULL);
-            printf("end\n\n");
         }
 
     } else if (barrier == 2) { // Dissemination Barrier
@@ -131,7 +119,7 @@ int main() {
     // printf("From this function, the thread id is %d\n", thread);
     // pthread_join(thread, NULL); // join with the main thread
 
-
+    free(d);
     return 0;
 
 }
